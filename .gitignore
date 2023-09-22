@@ -32,3 +32,6 @@
 *.app
 
 data/*
+*.tsv
+*.log
+app*
