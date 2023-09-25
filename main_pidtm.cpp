@@ -12,8 +12,24 @@
 #define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
 #define TARGET_OCCUPATION 70
 #define NUM_TASKS 38
+// PIDTM defines
+#define KP 10
+#define KI 10
+#define KD 10
+#define INT_WINDOW 10
 
-long tableUpdates = 0;
+// PIDTM stuff
+volatile unsigned int measuredWindows;
+typedef struct{
+    // PID control variables
+    unsigned int derivative[DIM_Y * DIM_X];
+    unsigned int integral[DIM_Y * DIM_X];
+    unsigned int integral_prev[INT_WINDOW][DIM_Y * DIM_X];
+    unsigned int Temperature_prev[DIM_Y * DIM_X];
+    unsigned int control_signal[DIM_Y * DIM_X];
+} PIDinfo;
+volatile PIDinfo pidStatus;
+
 
 // pointer to read the tasks
 FILE *ftasks = NULL;
@@ -44,7 +60,7 @@ Tasks tasks [NUM_TASKS] =  {{0,2,0.350,1467}, {1,1,0.242,1228}, {2,0,0.190,607},
                             {31,2,0.485,1353},{32,2,0.382,776},{33,1,0.256,683},{34,1,0.326,1371},{35,2,0.428,1632},{36,1,0.263,1910},{37,2,0.341,1458}};
 
 /* PATTERN STUFF */
-unsigned int priorityPointer, priorityMatrix[SYSTEM_SIZE];
+unsigned int priorityMatrix[SYSTEM_SIZE];
 
 struct floorplan_structure floorplan; 
 extern struct UnitRel rel_unit[TOTAL_STRUCTURES];
@@ -61,15 +77,6 @@ double Tsteady[THERMAL_NODES];
 double Tdifference[THERMAL_NODES];
 int SystemFIT[DIM_X*DIM_Y];
 
-int state_last[DIM_X*DIM_Y], starting_fit[DIM_X*DIM_Y], state_stability[DIM_X*DIM_Y];
-void PATTERN_init(){
-    for(int i = 0; i < SYSTEM_SIZE; i++){
-        state_last[i] = -1;
-        starting_fit[i] = -1;
-        state_stability[i] = 0;
-    }
-}
-
 int getX(int id){
     return id%DIM_X;
 }
@@ -79,6 +86,7 @@ int getY(int id){
 }
 
 unsigned int API_GetTaskSlotFromTile(unsigned int id, unsigned int app){
+    //printf("Testing %d\n", id);
     if(many_core[getY(id)][getX(id)].taskSlot > 0){
         many_core[getY(id)][getX(id)].taskSlot = many_core[getY(id)][getX(id)].taskSlot - 1;
         if(many_core[getY(id)][getX(id)].type == -1){
@@ -232,9 +240,9 @@ void manyCorePrint(){
 
 void printHeaders(){
     FILE *fl,*fpower,*fp;
-    fl = fopen("data/PATTERN_FITlog.tsv", "w");
-    fp = fopen("data/PATTERN_SystemTemperature.tsv", "w");
-    fpower = fopen("data/PATTERN_SystemPower.tsv", "w");
+    fl = fopen("data/PIDTM_FITlog.tsv", "w");
+    fp = fopen("data/PIDTM_SystemTemperature.tsv", "w");
+    fpower = fopen("data/PIDTM_SystemPower.tsv", "w");
     fprintf(fp, "time");
     fprintf(fl, "time");
     fprintf(fpower, "time");
@@ -289,24 +297,23 @@ int getNextTask(){
     return task_i;
 }
 
-void PATTERN_allocation(int task_to_allocate){
+void PIDTM_allocation(int task_to_allocate){
     int k = 0, slot;
-    for(int i = 0; i < DIM_X; i++){
-        for(int j = 0; j < DIM_Y; j++){
-            slot = API_GetTaskSlotFromTile(priorityMatrix[priorityPointer], task_to_allocate);
-            priorityPointer = (priorityPointer + 1) % SYSTEM_SIZE;
-            if (slot != -1){
-                printf(" - Task %d allocated at addr: %dx%d", task_to_allocate, getY(priorityMatrix[priorityPointer]), getX(priorityMatrix[priorityPointer]));
-                return;
-            }
+    for(int i = 0; i < SYSTEM_SIZE; i++){
+        slot = API_GetTaskSlotFromTile(priorityMatrix[i], task_to_allocate);
+        //priorityPointer = (priorityPointer + 1) % SYSTEM_SIZE;
+        if (slot != -1){
+            printf(" - Task %d allocated at addr: %dx%d", task_to_allocate, getY(priorityMatrix[i]), getX(priorityMatrix[i]));
+            return;
         }
     }
+    printf(" - Retornando sem sucesso!");
+    return;
 }
 
 void GeneratePatternMatrix(){
     int i, aux;
     aux = 0;
-    priorityPointer = 0;
     for(i=0; i<(DIM_X*DIM_Y); i++){
         priorityMatrix[i] = aux;
         aux = aux + 2;
@@ -330,6 +337,56 @@ int getOccupation(){
     return ((cont*100)/SYSTEM_SIZE);
 }
 
+
+
+
+void PIDTM_UpdateScore(){
+    int i;
+    for (i = 0; i < SYSTEM_SIZE; i++) {
+        if ( measuredWindows >= INT_WINDOW ){
+            pidStatus.integral[i] = pidStatus.integral[i] - pidStatus.integral_prev[measuredWindows % INT_WINDOW][i];
+        }
+
+        pidStatus.integral_prev[measuredWindows % INT_WINDOW][i] = many_core[getY(i)][getX(i)].temp;
+
+        pidStatus.derivative[i] = many_core[getY(i)][getX(i)].temp - pidStatus.Temperature_prev[i];
+        pidStatus.integral[i] = pidStatus.integral[i] + many_core[getY(i)][getX(i)].temp;
+        pidStatus.control_signal[i] = (KP * many_core[getY(i)][getX(i)].temp) + (KI * pidStatus.integral[i] / INT_WINDOW) + (KD * pidStatus.derivative[i]);
+        pidStatus.Temperature_prev[i] = many_core[getY(i)][getX(i)].temp;
+    }
+    return;
+}
+
+void PIDTM_UpdatePriorityTable(){
+    int i;
+    int xy;
+    int index;
+    int coolest = -1;
+    //int addr;
+    unsigned int score[SYSTEM_SIZE];
+
+    for(i = 0; i < SYSTEM_SIZE; i++){
+        score[i] = pidStatus.control_signal[i];
+        //printf("score %d = %d\n", i, score[i]);
+    }
+
+    for ( i = SYSTEM_SIZE-1; i >= 0; i--) {
+        // reset the coolest
+        coolest = 0;
+
+        for ( xy = 0; xy < SYSTEM_SIZE; xy++ ) {
+            if (score[xy] < score[coolest] && score[xy] != -1)
+                coolest = xy;
+        }
+
+        //addr = ((coolest % DIM_X) << 8) | (coolest / DIM_X);
+
+        priorityMatrix[i] = coolest;
+        //printf("priority %d = %d\n", i, coolest);
+        score[coolest] = -1;
+    }
+}
+
 int main(int argc, char *argv[]){
 
     srand(time(0));
@@ -338,13 +395,13 @@ int main(int argc, char *argv[]){
     load_matrices();
 
     if(powerlog == NULL){
-        powerlog = fopen("data/PATTERN_SystemPower.tsv", "a");
+        powerlog = fopen("data/PIDTM_SystemPower.tsv", "a");
     }
     if(fp == NULL){
-        fp = fopen("data/PATTERN_SystemTemperature.tsv", "a");
+        fp = fopen("data/PIDTM_SystemTemperature.tsv", "a");
     }  
     if(fitlog == NULL){
-        fitlog = fopen("data/PATTERN_FITlog.tsv", "a");
+        fitlog = fopen("data/PIDTM_FITlog.tsv", "a");
     }
 
     // manycore model initializing
@@ -357,7 +414,7 @@ int main(int argc, char *argv[]){
             many_core[j][i].taskSlot = 1;
             many_core[j][i].current_time = 0;
             many_core[j][i].fit = 1000;
-            many_core[j][i].temp = 0;
+            many_core[j][i].temp = 273+40;
         }
     }
 
@@ -372,10 +429,14 @@ int main(int argc, char *argv[]){
         int barra_ene = 0;    
         printf("\rTime: %.3fs - SysOc: %d",((float)cont/1000), getOccupation());
         cont++;
+        measuredWindows = cont;
 
         // updates the temperature and FIT
         calcula_temp();
         calcula_fit();   
+
+        PIDTM_UpdateScore();
+        PIDTM_UpdatePriorityTable();
 
         // run until 1 sec of simulation
         if(cont == 60000){
@@ -383,7 +444,6 @@ int main(int argc, char *argv[]){
         } else if( cont % 1000 == 0 ){
             manyCorePrint();
         }
-        // STARTING SIMULATION...
         // if the time is over 20 ms start to evaluate the system
         else if(cont>20){
             // checks if the system is running at target occupation
@@ -391,7 +451,7 @@ int main(int argc, char *argv[]){
                 allocate_task = getNextTask();
                 
                 if(allocate_task != -1){
-                    PATTERN_allocation(allocate_task); barra_ene = 1;
+                    PIDTM_allocation(allocate_task); barra_ene = 1;
                 }
             }
         }
@@ -405,6 +465,7 @@ int main(int argc, char *argv[]){
             // write info into the log files
             fprintf(powerlog,"\t%f",power_trace[i]);
             fprintf(fp, "\t%.2f", (((float)(TempTraceEnd[i]*100)/100)-273.15));
+            many_core[getY(i)][getX(i)].temp = (((float)(TempTraceEnd[i]*100)/100)-273.15);
             fprintf(fitlog,"\t%f",rel_unit[i].ind_inst);
             
             if(many_core[getY(i)][getX(i)].type != -1) { 
