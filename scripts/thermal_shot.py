@@ -76,7 +76,7 @@ for folder in folders:
 
         # https://matplotlib.org/stable/gallery/images_contours_and_fields/interpolation_methods.html -> more interpolation methods
         # https://matplotlib.org/stable/tutorials/colors/colormaps.html                               -> more colors
-        pcm = axes[k].imshow(picAvg, interpolation='gaussian', aspect='auto', vmin=50, vmax=85, cmap='jet') # YlOrRd, jet, turbo
+        pcm = axes[k].imshow(picAvg, interpolation='gaussian', aspect='auto', vmin=50, vmax=100, cmap='jet') # YlOrRd, jet, turbo
 
         # Major ticks
         axes[k].set_xticks(np.arange(0, side, 1))

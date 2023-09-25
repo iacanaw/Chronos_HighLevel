@@ -7,13 +7,13 @@
 
 #define DIM_X 20
 #define DIM_Y 20
-#define N_STATES 35*4
+#define N_STATES 35*5
 #define N_TASKTYPE  3
 #define SYSTEM_SIZE (DIM_X*DIM_Y)  
 #define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
-#define TARGET_OCCUPATION 70
+#define TARGET_OCCUPATION 50
 #define NUM_TASKS 38
-#define LOG 1
+#define LOG 0
 
 unsigned int tableUpdates[N_TASKTYPE][N_STATES];
 
@@ -275,11 +275,13 @@ unsigned int API_getPEState(unsigned int id){
 
     if(dz >= 2)
         state = state+35;
+    else if(x == 0 || x == DIM_X-1 || y == 0 || y == DIM_Y-1)
+        state = state+35*4;
     else if(dy >= 2)
         state = state+35*2;
     else if(dx+dy >= 3)
         state = state+35*3;
-
+    
     if(state >= N_STATES){
         printf("ERRO CALCULANDO ESTADO: %d", state);
         while(1){}
@@ -316,8 +318,8 @@ int API_getMaxIdxfromRow(float scoreTable[N_TASKTYPE][N_STATES], unsigned int ro
 void API_PrintScoreTable(float scoreTable[N_TASKTYPE][N_STATES]){
     int i, j;
     FILE *fst, *fst2;
-    fst = fopen("ScoreTable435.tsv", "w");
-    fst2 = fopen("ScoreTable435_vector.tsv", "w");
+    fst = fopen("ScoreTable535.tsv", "w");
+    fst2 = fopen("ScoreTable535_vector.tsv", "w");
     fprintf(fst2, "float scoreTable[N_TASKTYPE][N_STATES] = { ");
     for(i = 0; i < N_TASKTYPE; i++){
         fprintf(fst2, " {");
@@ -467,7 +469,7 @@ void calcula_fit(){
 void manyCorePrint(){ 
     FILE *fss;
     char tipo[3];
-    fss = fopen("SystemShot435.tsv", "w");
+    fss = fopen("SystemShot535.tsv", "w");
     int id = 0;
     for(int j=0;j<DIM_Y;j++){
         for(int i=0;i<DIM_X;i++){
@@ -675,7 +677,7 @@ void FLEA_training(int time){
     float oldvalue, maxval, reward = 0.0,  delta = 0.0;
 
     FILE *freward;
-    freward = fopen("Rewards435.log", "a");
+    freward = fopen("Rewards535.log", "a");
     
     for(int i = 0; i < SYSTEM_SIZE; i++){
         taskType = many_core[getY(i)][getX(i)].type;
@@ -807,7 +809,7 @@ int main(int argc, char *argv[]){
         calcula_fit();   
 
         // run until 1 sec of simulation
-        if(cont == 60000){
+        if(cont == 60000000){
             break; 
         } else if( cont % 1000 == 0 ){
             manyCorePrint();
@@ -817,15 +819,15 @@ int main(int argc, char *argv[]){
         else if(cont>20){
             
             // checks if the system is running at target occupation
-            if( getOccupation() < int(20*sin(cont/1000) + TARGET_OCCUPATION)  ){
+            if( getOccupation() < int(20*sin(cont/100000) + TARGET_OCCUPATION)  ){
                 allocate_task = getNextTask();
                 
                 if(allocate_task != -1){
-                    //FLEA_training_allocation(allocate_task); barra_ene = 1;
-                    FLEA_allocation(allocate_task); barra_ene = 1;
+                    FLEA_training_allocation(allocate_task); barra_ene = 1;
+                    //FLEA_allocation(allocate_task); barra_ene = 1;
                 }
             }
-            //if(cont > 1000) FLEA_training(cont);
+            if(cont > 1000) FLEA_training(cont);
         }
 
         // write the time into the log files:
