@@ -107,7 +107,7 @@ int main(){
                 // if( idx == 0)
                 //     lineStream >> auxValue;
                 lineStream >> auxValue;
-                temperatures[idx][line_temp] = auxValue;
+                temperatures[idx][line_temp] = auxValue+273.15;
                 // cout << auxValue << endl;
                 idx++;
             }
@@ -133,7 +133,7 @@ int main(){
                 //     lineStream >> auxValue;
                 lineStream >> auxValue;
                 power[idx][line_power] = auxValue;
-                cout << auxValue << endl;
+                //cout << auxValue << endl;
                 idx++;
             }
             line_power++;

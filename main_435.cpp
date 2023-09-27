@@ -803,9 +803,10 @@ int main(int argc, char *argv[]){
         // run until 1 sec of simulation
         if(cont == 60000){
             break; 
-        } else if( cont % 1000 == 0 ){
-            manyCorePrint();
-        }
+        } 
+        // else if( cont % 1000 == 0 ){
+        //     manyCorePrint();
+        // }
         // STARTING SIMULATION...
         // if the time is over 20 ms start to evaluate the system
         else if(cont>20){

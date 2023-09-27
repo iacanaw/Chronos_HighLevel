@@ -60,7 +60,7 @@ float min_fit;
 float randomval;
 float lifetime_lognorm;
 float mttf_lognorm;
-int totalruns=10000000; /* This sets the number of iterations in the Monte-Carlo
+int totalruns=1000000; /* This sets the number of iterations in the Monte-Carlo
 analysis. We use a value of 10E7. The more the iterations, the more accurate the
 result. However, this will also increase simulation time.*/
 

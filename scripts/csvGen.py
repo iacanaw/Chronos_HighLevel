@@ -14,6 +14,9 @@ labels = ["Grouped", "Pattern", "PIDTM", "FLEA35", "FLEA535"]
 DIM_X = 20
 DIM_Y = 20
 
+with open("data/log.csv", "w") as logfile:
+    pass
+
 for folder in folders:
     print("Reading file " + folder + "...")
     temp_data = pd.read_csv("data/"+folder+"_SystemTemperature.tsv", sep='\t')
@@ -65,13 +68,29 @@ for folder in folders:
 
     fit_avg = fit_avg/fit_samples
 
-    with open("simulation/mttflog.txt", "r") as mttffile:
+    with open("data/"+folder+"_mttflog.txt", "r") as mttffile:
         #line = mttffile.readline()
         line = mttffile.readline()
         splited = line.split(' ')
         mttf = splited[len(splited)-1]
 
-    with open("simulation/ThermalStatistics.csv", "r") as tsfile:
+    higherFIT = 0
+    with open("data/"+folder+"_montecarlofile", "r") as montecarlofile:
+        while(True):
+            peFIT = 0
+            for i in range(5):
+                line = montecarlofile.readline()
+                #print(line)
+                if(line == ''):
+                    break
+                peFIT += float(line)
+            if peFIT > higherFIT:
+                higherFIT = peFIT
+            if(line == ''):
+                break
+        mttf_higerFIT = (((1000000000/higherFIT)/24)/365)
+
+    with open("data/"+folder+"_ThermalStatistics.csv", "r") as tsfile:
         line = tsfile.readline()
         splited = line.split(";")
         maxx = splited[0]
@@ -98,19 +117,17 @@ for folder in folders:
         minn_std = splited[1]
         
 
-    with open("simulation/0_log.csv", "w") as logfile:
+    with open("data/log.csv", "a") as logfile:
+        print(folder, file=logfile, end=';')
         print(str(DIM_X*DIM_Y), file=logfile, end=';')
-        print(ALGORITHM, file=logfile, end=';')
-        print(str(occ).replace(".",","), file=logfile, end=';')
-        print(str(hop).replace(".",","), file=logfile, end=';')
-        print(str(migs).replace(".",","), file=logfile, end=';')
         print(str(power_avg).replace(".",","), file=logfile, end=';')
         print(str(temp_avg).replace(".",","), file=logfile, end=';')
         print(str(peak_avg).replace(".",","), file=logfile, end=';')
         print(str(fit_avg).replace(".",","), file=logfile, end=';')
         print(str(mttf).replace(".",",").replace("\n", ""), file=logfile, end=';')
-        print("-;-;-", file=logfile, end=';')
-        print(SCENARIO, file=logfile, end=';')
+        print(str(higherFIT).replace(".",","), file=logfile, end=';')
+        print(str(mttf_higerFIT).replace(".",",").replace("\n", ""), file=logfile, end=';')
+        #print("-;-;-", file=logfile, end=';')
         print(maxx, file=logfile, end=';')
         print(q3, file=logfile, end=';')
         print(median, file=logfile, end=';')
@@ -120,5 +137,5 @@ for folder in folders:
         print(q3_std.replace("\n", ""), file=logfile, end=';')
         print(median_std.replace("\n", ""), file=logfile, end=';')
         print(q1_std.replace("\n", ""), file=logfile, end=';')
-        print(minn_std.replace("\n", ""), file=logfile, end=';')
-        print(clusterformation, file=logfile, end='')
+        print(minn_std.replace("\n", ""), file=logfile, end='\n')
+        #print(clusterformation, file=logfile, end='\n')
