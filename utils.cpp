@@ -190,6 +190,22 @@ unsigned int API_GetTaskSlotFromTile(unsigned int id, unsigned int app){
     }
 }
 
+unsigned int API_GetTaskSlotFromTile_Mig(unsigned int id, unsigned int app, unsigned int currentTime){
+    if(many_core[getY(id)][getX(id)].taskSlot > 0){
+        many_core[getY(id)][getX(id)].taskSlot = many_core[getY(id)][getX(id)].taskSlot - 1;
+        if(many_core[getY(id)][getX(id)].type == -1){
+            many_core[getY(id)][getX(id)].id = tasks[app].id;
+            many_core[getY(id)][getX(id)].type = tasks[app].type;
+            many_core[getY(id)][getX(id)].power = tasks[app].power;
+            many_core[getY(id)][getX(id)].totalTime = tasks[app].totalTime;
+            many_core[getY(id)][getX(id)].current_time = currentTime;
+        }
+        return 1;
+    }else {
+        return -1;
+    }
+}
+
 void load_matrices(){
     FILE *binvpointer;
     binvpointer = fopen("20x20/binv.txt","r");

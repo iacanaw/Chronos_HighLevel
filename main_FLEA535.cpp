@@ -225,6 +225,33 @@ void FLEA535_allocation(int task_to_allocate){
 }
 
 
+void FLEA535_migrate(int id_src){
+    int sorted_id[DIM_X*DIM_Y], sorted_score[DIM_X*DIM_Y];
+    int k = 0;
+
+    int task_to_allocate = many_core[getY(id_src)][getX(id_src)].id;
+    many_core[getY(id_src)][getX(id_src)].current_time = -1;
+
+    for(int i = 0; i < DIM_X; i++){
+        for(int j = 0; j < DIM_Y; j++){
+            sorted_id[k] = k;
+            sorted_score[k] = (int)(scoreTable[tasks[task_to_allocate].type][API_getPEState(k)]*1000);
+            k++;
+        }
+    }
+    k=0;
+    quickSort(sorted_score, sorted_id, 0, (DIM_X*DIM_Y)-1);
+    int id, slot = -1;
+    for(int i = SYSTEM_SIZE-1; i >= 0; i--){
+        id = sorted_id[i];
+        slot = API_GetTaskSlotFromTile_Mig(id, task_to_allocate, many_core[getY(id)][getX(id)].current_time);
+        if (slot != -1) break;
+    }
+    if (slot != -1){
+        printf("PE %d -> PE %d\n", id_src, id);
+    }
+}
+
 void FLEA535_training_allocation(int task_to_allocate){
     float epsilon = 0.2;
     int sorted_id[DIM_X*DIM_Y], sorted_score[DIM_X*DIM_Y];
@@ -434,6 +461,22 @@ int main(int argc, char *argv[]){
 #endif
         }
 
+        // Migrate
+        int higherTempID = 0;
+        if(cont%20 == 0){
+            // find the higher temp PE
+            for(int i = 0; i < SYSTEM_SIZE; i++){
+                //printf("temp: %d %d\n", i, many_core[getY(i)][getX(i)].temp);
+                if(many_core[getY(i)][getX(i)].temp > many_core[getY(higherTempID)][getX(higherTempID)].temp){
+                    if(many_core[getY(i)][getX(i)].type != -1){
+                        higherTempID = i;
+                    }
+                }
+            }
+            //
+            FLEA535_migrate(higherTempID);
+        }
+
         // write the time into the log files:
 #if LOG
         fprintf(fitlog, "%.5f", ((float)cont/1000));
@@ -445,11 +488,12 @@ int main(int argc, char *argv[]){
             // write info into the log files
             fprintf(powerlog,"\t%f",power_trace[i]);
             fprintf(fp, "\t%.2f", (((float)(TempTraceEnd[i]*100)/100)-273.15));
+            many_core[getY(i)][getX(i)].temp = (int)(((float)(TempTraceEnd[i]*100)/100)-273.15);
             fprintf(fitlog,"\t%f",rel_unit[i].ind_inst);
 #endif  
             if(many_core[getY(i)][getX(i)].type != -1) { 
                 // checks if the task has finished
-                if(many_core[getY(i)][getX(i)].current_time >= many_core[getY(i)][getX(i)].totalTime) {
+                if(many_core[getY(i)][getX(i)].current_time >= many_core[getY(i)][getX(i)].totalTime || many_core[getY(i)][getX(i)].current_time == -1) {
                     printf(" - Task %d dealocated from addr %dx%d",many_core[getY(i)][getX(i)].id,(int)i/DIM_X, i%DIM_X ); barra_ene = 1;
                     //manyCorePrint();
                     //getchar();

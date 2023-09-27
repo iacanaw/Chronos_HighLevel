@@ -7,7 +7,7 @@
 #define N_TASKTYPE  3
 #define SYSTEM_SIZE (DIM_X * DIM_Y)  
 #define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
-#define TARGET_OCCUPATION 50
+#define TARGET_OCCUPATION 90
 #define NUM_TASKS 38
 #define SIM_SEC 60
 
@@ -15,7 +15,7 @@
 struct Tasks{
     int id,type;
     float power;
-    int totalTime, taskSlot, fit,temp, current_time;
+    int totalTime, taskSlot, fit, temp, current_time;
 };
 
 extern struct floorplan_structure floorplan; 
@@ -55,6 +55,7 @@ int partition (int arr[], int arr2[], int low, int high);
 void quickSort(int arr[], int arr2[], int low, int high);
 void randPositions(int arr[], int arr2[], int low, int high);
 unsigned int API_GetTaskSlotFromTile(unsigned int id, unsigned int app);
+unsigned int API_GetTaskSlotFromTile_Mig(unsigned int id, unsigned int app, unsigned int currentTime);
 void load_matrices();
 void calcula_temp();
 void calcula_fit();
