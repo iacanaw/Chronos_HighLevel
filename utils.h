@@ -9,7 +9,7 @@
 #define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
 #define TARGET_OCCUPATION 50
 #define NUM_TASKS 38
-#define SIM_SEC 1
+#define SIM_SEC 60
 
 // Estrutura de tasks e do tile
 struct Tasks{

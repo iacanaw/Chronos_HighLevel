@@ -107,6 +107,7 @@ srand((unsigned)time(NULL));
 
 for (runs =0; runs < totalruns; runs++)
 {
+	//printf("Montecarlo simulation %.2f...\r", (runs*100)/totalruns);
 	randomval = (float)rand()/RAND_MAX;
 	
 	if ((-1.52245 - log(randomval/4.58344)) < 0.0)

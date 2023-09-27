@@ -35,3 +35,6 @@ data/*
 *.tsv
 *.log
 app*
+scripts/RAMP/montecarlo
+scripts/RAMP/ramp_main
+scripts/RAMP/montecarlofile

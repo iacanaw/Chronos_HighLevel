@@ -14,16 +14,24 @@ done
 
 wait
 
+python3 scripts/thermal_shot.py &
+
 for sim in 'PATTERN' 'GROUPED' 'FLEA35' 'FLEA535' 'PIDTM'; do
     python3 scripts/graphTemperature.py $sim &
-    ./scripts/RunRAMP.sh 20 20 $sim
+    cp -r scripts/RAMP 'scripts/temp/RAMP_'$sim
+    ./scripts/RunRAMP.sh 20 20 $sim &
 done
 
 wait
 
-python3 scripts/thermal_shot.py
+for sim in 'PATTERN' 'GROUPED' 'FLEA35' 'FLEA535' 'PIDTM'; do
+    rm -rf 'scripts/temp/RAMP_'$sim
+done
+
+#python3 scripts/thermal_shot.py
+mv data/thermal_shot.png 'data/ThermalShotOcc'$OCC'Time'$TIME'sec.png'
 python3 scripts/csvGen.py
-mkdir 'data/ResultOcc'$OCC'_'$TIME'sec'
-mv data/*_* ' data/ResultOcc'$OCC'_'$TIME'sec'
-mv data/log.csv 'data/log_'$OCC'_'$TIME'sec.csv'
+mkdir -p 'data/ResultOcc'$OCC'Time'$TIME'sec'
+mv data/*_* 'data/ResultOcc'$OCC'Time'$TIME'sec/'
+mv data/log.csv 'data/logOcc'$OCC'Time'$TIME'sec.csv'
 
