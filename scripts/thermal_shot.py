@@ -10,17 +10,18 @@ import math
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
 
-fig, axes = plt.subplots(nrows=1, ncols=4, sharex=True, sharey=True,  figsize=(12,3), constrained_layout=True)
+fig, axes = plt.subplots(nrows=1, ncols=5, sharex=True, sharey=True,  figsize=(15,3), constrained_layout=True)
 
 folder_w = "data/GROUPED_SystemTemperature.tsv"
 folder_p = "data/PATTERN_SystemTemperature.tsv"
 folder_pid = "data/PIDTM_SystemTemperature.tsv"
-folder_c = "data/FLEA_SystemTemperature.tsv"
+folder_flea35 = "data/FLEA35_SystemTemperature.tsv"
+folder_flea535 = "data/FLEA535_SystemTemperature.tsv"
 
-folders = [folder_w, folder_p, folder_pid, folder_c] 
-labels = ["Grouped", "Pattern", "PID", "FLEA"]
+folders = [folder_w, folder_p, folder_pid, folder_flea35, folder_flea535] 
+labels = ["Grouped", "Pattern", "PIDTM", "FLEA35", "FLEA535"]
 #colors = ["#f9c80e", "#f86624", "#ea3546", "#43bccd" ]
-colors = ["#390099", "#9e0059", "#ff5400", "#ffbd00" ]
+colors = ["#390099", "#9e0059", "#ff5400", "#ffbd00", "#00d5ff"]
 
 boxplot = []
 picplot = []
@@ -28,7 +29,7 @@ picplot = []
 k = 0
 for folder in folders:
         print("Reading file " + folder + "...")
-        tsv_data = pd.read_csv(folder, sep='\t')
+        tsv_data = pd.read_csv(folder, sep='\t', nrows=60000)
         raw_data = tsv_data.to_numpy()
 
         

@@ -2,17 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <bits/stdc++.h>
-#include "reliability.h"
 #include <math.h>
+#include "reliability.h"
+#include "utils.h"
 
-#define DIM_X 20
-#define DIM_Y 20
 #define N_STATES 35*4
-#define N_TASKTYPE  3
-#define SYSTEM_SIZE (DIM_X*DIM_Y)  
-#define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
-#define TARGET_OCCUPATION 70
-#define NUM_TASKS 38
 #define LOG 1
 
 unsigned int tableUpdates[N_TASKTYPE][N_STATES];

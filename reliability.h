@@ -1,11 +1,11 @@
+#ifndef RELIABILITY_H_
+#define RELIABILITY_H_ 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 
-
-#ifndef RELIABILITY_H_
-#define RELIABILITY_H_ 
 
 /* reliability.h : Defines all global variables used by RAMP */
 

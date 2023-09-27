@@ -2,220 +2,30 @@
 #include <stdlib.h>
 #include <time.h>
 #include <bits/stdc++.h>
-#include "reliability.h"
 #include <math.h>
+#include "utils.h"
+#include "reliability.h"
 
-#define DIM_X 20
-#define DIM_Y 20
 #define N_STATES 35*5
-#define N_TASKTYPE  3
-#define SYSTEM_SIZE (DIM_X*DIM_Y)  
-#define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
-#define TARGET_OCCUPATION 50
-#define NUM_TASKS 38
-#define LOG 0
+#define LOG 1
+#define TRAINING 0
 
+// Training stuff
 unsigned int tableUpdates[N_TASKTYPE][N_STATES];
-
-// pointer to read the tasks
-FILE *ftasks = NULL;
-FILE *powerlog = NULL;
-FILE *fitlog = NULL;
-FILE *fp = NULL;
-
-struct Tasks{
-    int id,type;
-    float power;
-    int totalTime, taskSlot, fit,temp, current_time;
-};
-
-Tasks many_core [DIM_Y][DIM_X];
-
-// Tasks tasks [NUM_TASKS] =  {{0,2,0.350,1467,0},{1,1,0.242,1228,0},{2,0,0.190,607,0},{3,0,0.172,1999,0},
-//                             {4,0,0.167,1223,0},{5,0,0.162,1399,0},{6,0,0.154,1409,0},{7,2,0.359,1138,0},
-//                             {8,2,0.350,1603,0},{9,1,0.242,1835,0},{10,0,0.190,1243,0},{11,0,0.172,1756,0},
-//                             {12,0,0.167,639,0},{13,0,0.162,547,0},{14,0,0.154,1073,0},{15,2,0.359,819,0}};
-
-Tasks tasks [NUM_TASKS] =  {{0,2,0.350,467}, {1,1,0.242,228}, {2,0,0.190,607},  {3,0,0.172,999},
-                            {4,0,0.167,223}, {5,0,0.162,399}, {6,0,0.154,409}, {7,2,0.359,138},
-                            {8,2,0.472,603}, {9,0,0.135,835}, {10,0,0.151,243},{11,0,0.141,756},
-                            {12,2,0.469,639}, {13,2,0.474,547}, {14,2,0.477,073},{15,2,0.459,819},
-                            {16,1,0.271,479},{17,1,0.282,980},
-                            {18,2,0.343,925},{19,2,0.362,669},{20,2,0.360,819}, {21,2,0.347,606},{22,2,0.364,930},{23,1,0.251,633},
-                            {24,0,0.187,934}, {25,0,0.188,644}, {26,0,0.188,648}, {27,0,0.196,630}, {28,0,0.206,484},{29,0,0.116,610},{30,2,0.353,422},
-                            {31,2,0.485,353},{32,2,0.382,776},{33,1,0.256,683},{34,1,0.326,371},{35,2,0.428,632},{36,1,0.263,910},{37,2,0.341,458}};
-
-
-// Score table populated with high values!
-
-float scoreTable[N_TASKTYPE][N_STATES];
-
-struct floorplan_structure floorplan; 
-extern struct UnitRel rel_unit[TOTAL_STRUCTURES];
-
-double Binv[THERMAL_NODES][SYSTEM_SIZE];
-double Cexp[THERMAL_NODES][THERMAL_NODES];
-
-int power[DIM_Y][DIM_X];
-double power_trace[SYSTEM_SIZE];
-double t_steady[THERMAL_NODES];
-
-double TempTraceEnd[THERMAL_NODES];
-double Tsteady[THERMAL_NODES];
-double Tdifference[THERMAL_NODES];
-int SystemFIT[DIM_X*DIM_Y];
-
 int state_last[DIM_X*DIM_Y], starting_fit[DIM_X*DIM_Y], state_stability[DIM_X*DIM_Y];
-void FLEA_init(){
+
+// The score table
+float scoreTable[N_TASKTYPE][N_STATES] = {  {324237.0, 295195.0, 287508.0, 285065.0, 270329.0, 309018.0, 285011.0, 288375.0, 271410.0, 288543.0, 288562.0, 277399.0, 280248.0, 271141.0, 244175.0, 307707.0, 287938.0, 287855.0, 286293.0, 290539.0, 290118.0, 282242.0, 290476.0, 287227.0, 280388.0, 291726.0, 290776.0, 287595.0, 292417.0, 286941.0, 287158.0, 293754.0, 290471.0, 290603.0, 291297.0, 297806.0, 286080.0, 284385.0, 287026.0, 262177.0, 285094.0, 283815.0, 286411.0, 274827.0, 293329.0, 282637.0, 275086.0, 220773.0, 275904.0, 134824.0, 290571.0, 284396.0, 282803.0, 288085.0, 291406.0, 284692.0, 280116.0, 294256.0, 285579.0, 284585.0, 294808.0, 289358.0, 276039.0, 301347.0, 278731.0, 289297.0, 303952.0, 280151.0, 293210.0, 300779.0, 301228.0, 284493.0, 286633.0, 289318.0, 199160.0, 298560.0, 284523.0, 290816.0, 244011.0, 287182.0, 284074.0, 253665.0, 81348.0, 180100.0, 49583.0, 300043.0, 291946.0, 285042.0, 282395.0, 302828.0, 298075.0, 283148.0, 280432.0, 290751.0, 189154.0, 304181.0, 299137.0, 287614.0, 298929.0, 287866.0, 281446.0, 289083.0, 289969.0, 276282.0, 225178.0, 309787.0, 281892.0, 288519.0, 273049.0, 201086.0, 292647.0, 294183.0, 288645.0, 238246.0, 274847.0, 265152.0, 240851.0, 45292.0, 182583.0, 61385.0, 303448.0, 296936.0, 295824.0, 269495.0, 304753.0, 306670.0, 283490.0, 256636.0, 288283.0, 198552.0, 309857.0, 298174.0, 287637.0, 301621.0, 289301.0, 285747.0, 296619.0, 288980.0, 298442.0, 290174.0, 303134.0, 280033.0, 279387.0, 262844.0, 0.0, 292787.0, 283082.0, 264281.0, 0.0, 290309.0, 266243.0, 0.0, 268405.0, 0.0, 0.0, 292194.0, 284342.0, 273836.0, 0.0, 290463.0, 277013.0, 0.0, 280254.0, 0.0, 0.0, 291494.0, 281330.0, 0.0, 284291.0, 0.0, 0.0, 283134.0, 0.0, 0.0, 0.0 },
+ {278829.0, 261023.0, 251259.0, 245183.0, 212682.0, 256089.0, 253153.0, 250076.0, 228388.0, 252593.0, 251969.0, 224473.0, 225137.0, 208107.0, 147845.0, 258614.0, 250987.0, 251394.0, 246205.0, 253499.0, 255025.0, 248296.0, 252916.0, 246972.0, 229878.0, 255417.0, 253319.0, 250179.0, 253706.0, 252240.0, 245782.0, 252888.0, 251520.0, 247301.0, 242704.0, 253532.0, 251240.0, 240984.0, 236350.0, 188989.0, 252198.0, 252545.0, 246206.0, 203424.0, 252451.0, 237267.0, 212015.0, 144231.0, 194863.0, 91867.0, 251979.0, 254122.0, 244599.0, 223726.0, 253586.0, 243969.0, 234368.0, 243070.0, 230489.0, 213859.0, 253116.0, 250953.0, 230981.0, 249020.0, 240086.0, 231951.0, 251975.0, 240379.0, 239614.0, 231185.0, 254180.0, 244063.0, 233614.0, 202547.0, 154358.0, 248274.0, 239758.0, 225462.0, 186750.0, 218252.0, 210627.0, 182772.0, 25911.0, 131626.0, 41425.0, 254040.0, 247583.0, 240112.0, 222542.0, 252160.0, 245278.0, 223373.0, 181202.0, 218621.0, 135367.0, 253523.0, 250303.0, 228586.0, 235443.0, 234029.0, 200824.0, 202881.0, 225645.0, 203339.0, 142752.0, 265848.0, 253778.0, 243193.0, 187027.0, 104208.0, 255366.0, 244926.0, 226106.0, 134790.0, 199966.0, 177989.0, 138253.0, 19806.0, 103452.0, 22809.0, 259866.0, 254578.0, 249177.0, 193563.0, 257763.0, 249645.0, 222872.0, 173118.0, 213252.0, 135432.0, 259635.0, 253805.0, 226881.0, 245276.0, 236783.0, 207964.0, 236287.0, 239486.0, 219184.0, 188805.0, 265308.0, 243793.0, 241869.0, 204267.0, 0.0, 251356.0, 241138.0, 217300.0, 0.0, 251586.0, 211963.0, 0.0, 200664.0, 0.0, 0.0, 257622.0, 248838.0, 230338.0, 0.0, 253714.0, 236780.0, 0.0, 226812.0, 0.0, 0.0, 250000.0, 235190.0, 0.0, 223017.0, 0.0, 0.0, 228156.0, 0.0, 0.0, 0.0 },
+ {242795.0, 218014.0, 216632.0, 208812.0, 168472.0, 220349.0, 215443.0, 216524.0, 192378.0, 214925.0, 213691.0, 204284.0, 188210.0, 160599.0, 136734.0, 217014.0, 215317.0, 215752.0, 210058.0, 217115.0, 216057.0, 214811.0, 216466.0, 214595.0, 179255.0, 217482.0, 216524.0, 213841.0, 216057.0, 213471.0, 206791.0, 216213.0, 202233.0, 213765.0, 185093.0, 217285.0, 217352.0, 214169.0, 200413.0, 156372.0, 216099.0, 211536.0, 216143.0, 159347.0, 216089.0, 187784.0, 165176.0, 136988.0, 163755.0, 89479.0, 216774.0, 216832.0, 216019.0, 176223.0, 217335.0, 213926.0, 191237.0, 192053.0, 187812.0, 179330.0, 216559.0, 216260.0, 192724.0, 213262.0, 202509.0, 193105.0, 207457.0, 190153.0, 195624.0, 192838.0, 218073.0, 216773.0, 214885.0, 178707.0, 99951.0, 216301.0, 216858.0, 192287.0, 131972.0, 200583.0, 182483.0, 141749.0, 48225.0, 102565.0, 24580.0, 216831.0, 216839.0, 205395.0, 149430.0, 217875.0, 213227.0, 171909.0, 189211.0, 173515.0, 130399.0, 216554.0, 205563.0, 167976.0, 202542.0, 175272.0, 171287.0, 201052.0, 177994.0, 172582.0, 134220.0, 221974.0, 214870.0, 212318.0, 170061.0, 75311.0, 216326.0, 216241.0, 188799.0, 101479.0, 199009.0, 180607.0, 111236.0, 35833.0, 90701.0, 33547.0, 218003.0, 217593.0, 206303.0, 132258.0, 219306.0, 215789.0, 162322.0, 177035.0, 175063.0, 116143.0, 217631.0, 213396.0, 161145.0, 213540.0, 181989.0, 176150.0, 212284.0, 182059.0, 193570.0, 168772.0, 219470.0, 214105.0, 208175.0, 141494.0, 0.0, 214973.0, 213757.0, 147580.0, 0.0, 211531.0, 145931.0, 0.0, 144495.0, 0.0, 0.0, 218731.0, 215337.0, 161696.0, 0.0, 215272.0, 158016.0, 0.0, 155082.0, 0.0, 0.0, 216623.0, 166878.0, 0.0, 166275.0, 0.0, 0.0, 157559.0, 0.0, 0.0, 0.0 } };
+
+void FLEA535_init(){
     for(int i = 0; i < SYSTEM_SIZE; i++){
         state_last[i] = -1;
         starting_fit[i] = -1;
         state_stability[i] = 0;
     }
 }
-
-int getX(int id){
-    int retorno = id%DIM_X;
-    if(retorno >= DIM_X || retorno < 0){
-        printf("\nErro getX(%d) = %d\n", id, retorno);
-        throw 1;
-    }
-    return retorno;
-}
-
-int getY(int id){
-    int retorno = (int)(id/DIM_Y);
-    if(retorno >= DIM_Y || retorno < 0){
-        printf("\nErro getY(%d) = %d\n", id, retorno);
-        throw 1;
-    } 
-    return retorno;
-}
-
-int getSouth(int x, int y){
-    if(y > 0){
-        return(many_core[y-1][x].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getNorth(int x, int y){
-    if(y < DIM_Y-1){
-        return(many_core[y+1][x].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getEast(int x, int y){
-    if(x < DIM_X-1){
-        return(many_core[y][x+1].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getWest(int x, int y){
-    if(x > 0){
-        return(many_core[y][x-1].type);
-    } else {
-        return(-1);
-    }
-}
-
-
-int getNorthEast(int x, int y){
-    if(y < DIM_Y-1 && x < DIM_X-1){
-        return(many_core[y+1][x+1].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getNorthWest(int x, int y){
-    if(y < DIM_Y-1 && x > 0){
-        return(many_core[y+1][x-1].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getSouthWest(int x, int y){
-    if(y > 0 && x > 0){
-        return(many_core[y-1][x-1].type);
-    } else {
-        return(-1);
-    }
-}
-
-int getSouthEast(int x, int y){
-    if(y > 0 && x < DIM_X-1){
-        return(many_core[y-1][x+1].type);
-    } else {
-        return(-1);
-    }
-}
-
-
-// A utility function to swap two elements 
-void swap(int* a, int* b) { 
-    int t = *a; 
-    *a = *b; 
-    *b = t; 
-}
-
-/* This function takes last element as pivot, places 
-the pivot element at its correct position in sorted 
-array, and places all smaller (smaller than pivot) 
-to left of pivot and all greater elements to right 
-of pivot */
-int partition (int arr[], int arr2[], int low, int high) { 
-    int pivot = arr[high]; // pivot 
-    int i = (low - 1); // Index of smaller element and indicates the right position of pivot found so far
-    int j;
-    for (j = low; j <= (high - 1); j++) { 
-        // If current element is smaller than the pivot 
-        if (arr[j] < pivot) { 
-            i++; // increment index of smaller element 
-            swap(&arr[i], &arr[j]);
-            swap(&arr2[i], &arr2[j]);
-        } 
-    } 
-    swap(&arr[i + 1], &arr[high]); 
-    swap(&arr2[i + 1], &arr2[high]); 
-    return (i + 1); 
-} 
-
-/* The main function that implements QuickSort 
-arr[] --> Array to be sorted, 
-low --> Starting index, 
-high --> Ending index */
-void quickSort(int arr[], int arr2[], int low, int high){ 
-    if (low < high){ 
-        /* pi is partitioning index, arr[p] is now 
-        at right place */
-        int pi = partition(arr, arr2, low, high); 
-  
-        // Separately sort elements before 
-        // partition and after partition 
-        quickSort(arr, arr2, low, (pi - 1)); 
-        quickSort(arr, arr2, (pi + 1), high); 
-    }
-}
-
-void randPositions(int arr[], int arr2[], int low, int high){
-    for(int i = low; i < (high-1); i++){
-        if(arr[i] == arr[i+1]){
-            if( 60 > random()%100 ){
-                swap(&arr[i], &arr[i+1]);
-                swap(&arr2[i], &arr2[i+1]);
-            }
-        }
-    }
-}
-
-
 
 //The place of x will be informed by sucessives sums and the y by num(addr%DIM_X or DIM_Y)
 unsigned int API_getPEState(unsigned int id){
@@ -285,22 +95,6 @@ unsigned int API_getPEState(unsigned int id){
     return state;
 }
 
-unsigned int API_GetTaskSlotFromTile(unsigned int id, unsigned int app){
-    if(many_core[getY(id)][getX(id)].taskSlot > 0){
-        many_core[getY(id)][getX(id)].taskSlot = many_core[getY(id)][getX(id)].taskSlot - 1;
-        if(many_core[getY(id)][getX(id)].type == -1){
-            many_core[getY(id)][getX(id)].id = tasks[app].id;
-            many_core[getY(id)][getX(id)].type = tasks[app].type;
-            many_core[getY(id)][getX(id)].power = tasks[app].power;
-            many_core[getY(id)][getX(id)].totalTime = tasks[app].totalTime;
-            many_core[getY(id)][getX(id)].current_time = 0;
-        }
-        return 1;
-    }else {
-        return -1;
-    }
-}
-
 int API_getMaxIdxfromRow(float scoreTable[N_TASKTYPE][N_STATES], unsigned int row){
     unsigned int max = 0, i;
     for( i = 1; i < N_STATES; i++){
@@ -339,129 +133,6 @@ void API_PrintScoreTable(float scoreTable[N_TASKTYPE][N_STATES]){
     fclose(fst2);
 }
 
-void load_matrices(){
-    FILE *binvpointer;
-    binvpointer = fopen("20x20/binv.txt","r");
-    FILE *cexppointer;
-    cexppointer = fopen("20x20/cexp.txt","r");
-
-    char line[1200000];
-    char *number;
-    int column, row;
-
-    //printf("atira4");
-
-    for (row = 0; row < THERMAL_NODES; row++){
-        fgets(line, sizeof(line), binvpointer);
-        number = strtok(line, " ");
-        for(column = 0; column < SYSTEM_SIZE; column++){
-            Binv[row][column] = strtod(number, NULL);
-            //printf("%f ", Binv[row][column]); 
-            number = strtok(NULL, " ");      
-        }
-    }
-
-
-    for (row = 0; row < THERMAL_NODES; row++){
-        fgets(line, sizeof(line), cexppointer);
-        number = strtok(line, " ");
-        for(column = 0; column < THERMAL_NODES; column++){
-            Cexp[row][column] = strtod(number, NULL);
-            //printf("%f ", Cexp[row][column]); 
-            number = strtok(NULL, " ");      
-        }
-    }
-
-    fclose(binvpointer);
-    fclose(cexppointer);
-
-    for(int i=0;i<THERMAL_NODES;i++){
-        TempTraceEnd[i] = 313.15; // Kelvin
-    }
-
-    int unitc;
-	for (unitc = 0; unitc < TOTAL_STRUCTURES; unitc++){
-        sprintf(floorplan.units[unitc].name, "p%d", unitc);
-        floorplan.units[unitc].height = 0.000194; // mem 8Kb
-        floorplan.units[unitc].width = 0.000194; // mem 8Kb
-
-        init(&floorplan, unitc);  /* Initialize structures*/
-        fitinit(unitc);           /* Initialize FITS for each structure*/
-    }
-}
-
-void calcula_temp(){ 
-    int index = 0;
-    // estimate the power consumption of each PE
-    for (int yi = 0; yi < DIM_Y; yi++){
-	    for(int xi = 0; xi < DIM_X; xi++){
-		    float variation = (float)(rand()%30) - 15.0; // variates 15%
-            variation = variation/100;
-            if(many_core[yi][xi].type != -1){
-                power_trace[index] = many_core[yi][xi].power + (many_core[yi][xi].power*variation);
-                if (power_trace[index] < 0.1) 
-                    power_trace[index] = 0.1;
-            }
-            else{
-                power_trace[index] = 0.1;
-            }
-		    index++;
-        }
-	}
-
-    // calculates the temperature of each PE
-    int i, j;
-    double heatContributionPower;
-
-    for(i = 0; i < THERMAL_NODES; i++){
-        heatContributionPower = 0;
-        for(j = 0; j < SYSTEM_SIZE; j++){
-            heatContributionPower += Binv[i][j]*power_trace[j];
-        }
-        Tsteady[i] = heatContributionPower + 318.15; // soma com Temperatura Ambiente
-        Tdifference[i] = TempTraceEnd[i] - Tsteady[i]; // Iaçanã: trouxe pra cá esse calculo, estava em outro for()
-    }
-
-    //for(int k = 0; k < THERMAL_NODES; k++) Tdifference[k] = TempTraceEnd[k] - Tsteady[k];    
-
-    for(int k = 0; k < THERMAL_NODES; k++){
-        double sumExponentials = 0;
-        for(j = 0; j < THERMAL_NODES; j++){
-            sumExponentials += Cexp[k][j] * Tdifference[j];
-        }
-        TempTraceEnd[k] = Tsteady[k] + sumExponentials;
-    }
-}
-
-void calcula_fit(){ 
-    for (int structures=0; structures < TOTAL_STRUCTURES; structures++){
-        /* Calculate FIT value by feeding in each structures temperature, activity
-            * factor, processor supply voltage, and processor frequency. */
-        //printf("Info: Temp : %f , Power: %f, strct = %d",TempTraceEnd[structures], power_trace[structures],structures);
-        allmodels(TempTraceEnd[structures], power_trace[structures], 1.0,  1.0,  structures);
-	}
-
-    //for(int i = 0; i < DIM_Y*DIM_X; i++) {}SystemFIT[i] = (int)rel_unit[i].ind_inst*100;
-
-    int m, n, i = 0, avgFit = 0, totalFit = 0;
-    for (n = 0; n < DIM_Y; n++){
-        for (m = 0; m < DIM_X; m++){
-            SystemFIT[i] = (int)rel_unit[i].ind_inst*100;
-            avgFit = many_core[n][m].fit;
-            // printsv("avgFit ", avgFit);
-            totalFit = many_core[n][m].fit << 5;
-            // printsv("totalFit1 ", totalFit);
-            totalFit = totalFit - avgFit;
-            // printsv("totalFit2 ", totalFit);
-            totalFit = totalFit + SystemFIT[i];
-            // printsv("totalFit3 ", totalFit);
-            many_core[n][m].fit = totalFit >> 5;
-            //printf("FIT %d => %d\n",i, many_core[n][m].fit);
-            i++;
-        }
-    }
-}
-
 void manyCorePrint(){ 
     FILE *fss;
     char tipo[3];
@@ -482,9 +153,9 @@ void manyCorePrint(){
 void printHeaders(){
     FILE *fl,*fpower,*fp;
 #if LOG
-    fl = fopen("data/FLEA_FITlog.tsv", "w");
-    fp = fopen("data/FLEA_SystemTemperature.tsv", "w");
-    fpower = fopen("data/FLEA_SystemPower.tsv", "w");
+    fl = fopen("data/FLEA535_FITlog.tsv", "w");
+    fp = fopen("data/FLEA535_SystemTemperature.tsv", "w");
+    fpower = fopen("data/FLEA535_SystemPower.tsv", "w");
     fprintf(fp, "time");
     fprintf(fl, "time");
     fprintf(fpower, "time");
@@ -501,58 +172,6 @@ void printHeaders(){
     fclose(fpower);
 #endif
     return;
-}
-
-int readline(FILE *f, char *buffer, size_t len){
-    char c; 
-    int i;
-    memset(buffer, 0, len);
-    for (i = 0; i < len; i++){   
-        int c = fgetc(f); 
-        if (!feof(f)) {   
-            if (c == '\r')
-                buffer[i] = 0;
-            else if (c == '\n'){   
-                buffer[i] = 0;
-                return i+1;
-            }   
-            else
-            buffer[i] = c; 
-        }   
-        else{   
-            return -1; 
-        }   
-    }   
-    return -1; 
-}
-
-int getNextTask(){
-    while(ftasks == NULL){
-        ftasks = fopen("tasks", "r");
-        printf("\nTasks file is open!\n");
-    }
-    char task[4];
-    int task_i;
-    readline(ftasks, task, 4);
-    task_i = atoi(task);
-    if(task_i == -1){
-        fclose(ftasks);
-    }
-    return task_i;
-}
-
-void GROUPED_allocation(int task_to_allocate){
-    int k = 0, slot;
-    for(int i = 0; i < DIM_X; i++){
-        for(int j = 0; j < DIM_Y; j++){
-            slot = API_GetTaskSlotFromTile(k, task_to_allocate);
-            k++;
-            if (slot != -1){
-                printf(" - Task %d allocated at addr: %dx%d", task_to_allocate, getY(k), getX(k));
-                return;
-            }
-        }
-    }
 }
 
 unsigned int getLessTested(int tasktype){
@@ -580,7 +199,7 @@ unsigned int getTotalUpdated(){
     return total;
 }
 
-void FLEA_allocation(int task_to_allocate){
+void FLEA535_allocation(int task_to_allocate){
     int sorted_id[DIM_X*DIM_Y], sorted_score[DIM_X*DIM_Y];
     int k = 0;
     for(int i = 0; i < DIM_X; i++){
@@ -606,7 +225,7 @@ void FLEA_allocation(int task_to_allocate){
 }
 
 
-void FLEA_training_allocation(int task_to_allocate){
+void FLEA535_training_allocation(int task_to_allocate){
     float epsilon = 0.2;
     int sorted_id[DIM_X*DIM_Y], sorted_score[DIM_X*DIM_Y];
     int k = 0;
@@ -645,23 +264,7 @@ void FLEA_training_allocation(int task_to_allocate){
         printf(" - Task %d allocated at addr: %dx%d", task_to_allocate, getY(id), getX(id));
 }
 
-// float Q_rsqrt( float number ){
-//     long i;
-//     float x2, y;
-//     const float threehalfs = 1.5F;
-
-//     x2 = number * 0.5F;
-//     y  = number;
-//     i  = * ( long * ) &y;                       // evil floating point bit level hacking
-//     i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
-//     y  = * ( float * ) &i;
-//     y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
-//     y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
-
-//     return y;
-// }
-
-void FLEA_training(int time){
+void FLEA535_training(int time){
     int addr=0, slot=0, taskType=0, current_fit=0, toprint=0, state, tp,  maxid;
     
     //---------------------------------------
@@ -693,10 +296,10 @@ void FLEA_training(int time){
             // calculates the reward
 
                 delta = ((float)(current_fit/100) - (float)(starting_fit[i]/100))*0.003;
-                reward = 100.0+(delta*delta);
+                reward = 50.0+(delta*delta);
                 //reward = Q_rsqrt(reward);
                 reward = 1/sqrt(reward);
-                reward = ((-400.0 * reward * delta)+50.0);
+                reward = ((-200.0 * reward * delta)+100.0);
                 // if(delta >= 2.0 && reward > 0.0){
                 //     printf("\nErro no cálculo do reward!\nDelta: %f; Reward: %f\n", delta, reward);
                 //     throw 3;
@@ -730,37 +333,36 @@ void FLEA_training(int time){
     }
     fclose(freward);
     // print score table
+#if TRAINING
     if(time % 100 == 0) API_PrintScoreTable(scoreTable);
     printf(" - Updates so far: %ld", getTotalUpdated());
-}
-
-int getOccupation(){
-    int cont = 0;
-    for(int i = 0; i<DIM_X; i++){
-        for(int j = 0; j < DIM_Y; j++){
-            if(many_core[j][i].type != -1){
-                cont++;
-            }
-        }
-    }
-    return ((cont*100)/SYSTEM_SIZE);
+#endif
 }
 
 int main(int argc, char *argv[]){
 
     srand(time(0));
 
+    // Arquivos
+    FILE *ftasks = NULL;
+    FILE *powerlog = NULL;
+    FILE *fitlog = NULL;
+    FILE *fp = NULL;
+
     // leitura dos arquivos binv e cexp do TEA
     load_matrices();
 
     if(powerlog == NULL){
-        powerlog = fopen("data/FLEA_SystemPower.tsv", "a");
+        powerlog = fopen("data/FLEA535_SystemPower.tsv", "a");
     }
     if(fp == NULL){
-        fp = fopen("data/FLEA_SystemTemperature.tsv", "a");
+        fp = fopen("data/FLEA535_SystemTemperature.tsv", "a");
     }  
     if(fitlog == NULL){
-        fitlog = fopen("data/FLEA_FITlog.tsv", "a");
+        fitlog = fopen("data/FLEA535_FITlog.tsv", "a");
+    }
+    if(ftasks == NULL){
+        ftasks = fopen("tasks", "r");
     }
 
     // manycore model initializing
@@ -780,18 +382,15 @@ int main(int argc, char *argv[]){
     printHeaders();
 
     int cont=0, allocate_task=-1;
-    
+
     /* FLEA INITIALIZATION */
-    FLEA_init();
+    FLEA535_init();
     for(int i = 0; i < N_TASKTYPE; i++){
         for(int j = 0; j < N_STATES; j++ ){
-            //scoreTable[i][j] = scoreTable[i][j] - scoreTable[i][j] + (float)random()%2000;
-            //scoreTable[i][j] = 1000.0;
-            //scoreTable[i][j] = 0.0;
+#if TRAINING
             tableUpdates[i][j] = 0;
-            // if( scoreTable[i][j] == 0.0 ) tableUpdates[i][j] = 0;
-            // else tableUpdates[i][j] = 1000;
-            scoreTable[i][j] = 0.0;
+#endif
+            scoreTable[i][j] = scoreTable[i][j] / 1000.0;
         }
     }
     
@@ -804,26 +403,34 @@ int main(int argc, char *argv[]){
         calcula_temp();
         calcula_fit();   
 
-        // run until 1 sec of simulation
-        if(cont == 60000000){
+        // run until 60 sec of simulation
+#if !TRAINING
+        if(cont == SIM_SEC*1000){
             break; 
         } else if( cont % 1000 == 0 ){
             manyCorePrint();
         }
+#endif
+
         // STARTING SIMULATION...
         // if the time is over 20 ms start to evaluate the system
         else if(cont>20){
             
             // checks if the system is running at target occupation
-            if( getOccupation() < int(20*sin(cont/100000) + TARGET_OCCUPATION)  ){
-                allocate_task = getNextTask();
+            if( getOccupation() < tagetOccupation(cont))  {
+                allocate_task = getNextTask(ftasks);
                 
                 if(allocate_task != -1){
-                    FLEA_training_allocation(allocate_task); barra_ene = 1;
-                    //FLEA_allocation(allocate_task); barra_ene = 1;
+#if TRAINING
+                    FLEA535_training_allocation(allocate_task); barra_ene = 1;
+#else
+                    FLEA535_allocation(allocate_task); barra_ene = 1;
+#endif
                 }
             }
-            if(cont > 1000) FLEA_training(cont);
+#if TRAINING
+            if(cont > 1000) FLEA535_training(cont);
+#endif
         }
 
         // write the time into the log files:
