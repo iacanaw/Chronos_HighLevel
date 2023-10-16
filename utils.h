@@ -2,20 +2,21 @@
 #define __UTILS__
 #include "reliability.h"
 
-#define DIM_X 20
-#define DIM_Y 20
+// #define DIM_X 8
+// #define DIM_Y 8
 #define N_TASKTYPE  3
 #define SYSTEM_SIZE (DIM_X * DIM_Y)  
 #define THERMAL_NODES (SYSTEM_SIZE*4)+12  // 4 thermal nodes for each PE plus 12 from the environment
-#define TARGET_OCCUPATION 90
+#define TARGET_OCCUPATION 50
 #define NUM_TASKS 38
-#define SIM_SEC 60
+#define SIM_SEC 2.5
 
 // Estrutura de tasks e do tile
 struct Tasks{
     int id,type;
     float power;
-    int totalTime, taskSlot, fit, temp, current_time;
+    int totalTime, taskSlot, current_time, fit;
+    float temp;
 };
 
 extern struct floorplan_structure floorplan; 

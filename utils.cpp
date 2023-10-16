@@ -380,6 +380,6 @@ int getOccupation(){
 }
 
 int tagetOccupation(int cont){
-    //return (int)(20*sin(cont/10000) + TARGET_OCCUPATION);
-    return (int)(TARGET_OCCUPATION);
+    return (int)(20*sin(cont/10000) + TARGET_OCCUPATION);
+    //return (int)(TARGET_OCCUPATION);
 }

@@ -6,18 +6,19 @@
 #include "utils.h"
 #include "reliability.h"
 
-#define N_STATES 35*5
-#define LOG 1
-#define TRAINING 0
+#define N_STATES 35
+#define LOG 0
+#define TRAINING 1
 
 // Training stuff
 unsigned int tableUpdates[N_TASKTYPE][N_STATES];
 int state_last[DIM_X*DIM_Y], starting_fit[DIM_X*DIM_Y], state_stability[DIM_X*DIM_Y];
 
 // The score table
-float scoreTable[N_TASKTYPE][N_STATES] = {  {358110.0, 311819.0, 326506.0, 287510.0, 267868.0, 336125.0, 334612.0, 309804.0, 281565.0, 333904.0, 316907.0, 291981.0, 332334.0, 286459.0, 289780.0, 342553.0, 326100.0, 322869.0, 294792.0, 348851.0, 328519.0, 297583.0, 328653.0, 300688.0, 302828.0, 341748.0, 328758.0, 306349.0, 325399.0, 302511.0, 314524.0, 338808.0, 314300.0, 321710.0, 333099.0 },
-                                            {281342.0, 273720.0, 236944.0, 233849.0, 193761.0, 282903.0, 267191.0, 235700.0, 210713.0, 268933.0, 252355.0, 220726.0, 257638.0, 221475.0, 235138.0, 289472.0, 263675.0, 239016.0, 213860.0, 268871.0, 254036.0, 229620.0, 267621.0, 230426.0, 235955.0, 267128.0, 264112.0, 234761.0, 268650.0, 236529.0, 238415.0, 274209.0, 247714.0, 251370.0, 260251.0 },
-                                            {210297.0, 193433.0, 191665.0, 158729.0, 125676.0, 207265.0, 200705.0, 163408.0, 131866.0, 201219.0, 173236.0, 153222.0, 176975.0, 145328.0, 150652.0, 206857.0, 191963.0, 172304.0, 143225.0, 203435.0, 184750.0, 153688.0, 183816.0, 152199.0, 154680.0, 197556.0, 187876.0, 148384.0, 200729.0, 157836.0, 156609.0, 204668.0, 163326.0, 168297.0, 166374.0 } };
+float scoreTable[N_TASKTYPE][N_STATES] = {  {292818.0, 272202.0, 271239.0, 268348.0, 257263.0, 281069.0, 271393.0, 268081.0, 257332.0, 277907.0, 266405.0, 259484.0, 273399.0, 260477.0, 271398.0, 283669.0, 273319.0, 265783.0, 261855.0, 280944.0, 268683.0, 266700.0, 279800.0, 262586.0, 276188.0, 277618.0, 273079.0, 263155.0, 274057.0, 265644.0, 274240.0, 280152.0, 269161.0, 278554.0, 283184.0 },
+ {262979.0, 244660.0, 239047.0, 230458.0, 200775.0, 251812.0, 242920.0, 239771.0, 207934.0, 248022.0, 232989.0, 201441.0, 233680.0, 210807.0, 228112.0, 253730.0, 248250.0, 238839.0, 225144.0, 250618.0, 244617.0, 236669.0, 241398.0, 227477.0, 225952.0, 254381.0, 244819.0, 234942.0, 244996.0, 237936.0, 230344.0, 245464.0, 236760.0, 236304.0, 240818.0 },
+ {236275.0, 206381.0, 201648.0, 198169.0, 133966.0, 203541.0, 200042.0, 200484.0, 142998.0, 202508.0, 199869.0, 141402.0, 168958.0, 143486.0, 169952.0, 216824.0, 200519.0, 200553.0, 152505.0, 198456.0, 201656.0, 157790.0, 200725.0, 148522.0, 150924.0, 203960.0, 201782.0, 159585.0, 200376.0, 160191.0, 156453.0, 201271.0, 157463.0, 159369.0, 170538.0 } };
+
 
 void FLEA35_init(){
     for(int i = 0; i < SYSTEM_SIZE; i++){
@@ -80,36 +81,41 @@ int API_getMaxIdxfromRow(float scoreTable[N_TASKTYPE][N_STATES], unsigned int ro
 
 void API_PrintScoreTable(float scoreTable[N_TASKTYPE][N_STATES]){
     int i, j;
-    FILE *fst, *fst2;
-    fst = fopen("ScoreTable535.tsv", "w");
-    fst2 = fopen("ScoreTable535_vector.tsv", "w");
+    FILE *fst, *fst2, *fupdt;
+    fupdt = fopen("ScoreTableUpdate35.tsv", "w");
+    fst = fopen("ScoreTable35.tsv", "w");
+    fst2 = fopen("ScoreTable35_vector.tsv", "w");
     fprintf(fst2, "float scoreTable[N_TASKTYPE][N_STATES] = { ");
     for(i = 0; i < N_TASKTYPE; i++){
         fprintf(fst2, " {");
         for(j = 0; j < N_STATES; j++){
             fprintf(fst,"%d",(int)(scoreTable[i][j]*1000));
+            fprintf(fupdt,"%d",(int)(tableUpdates[i][j]));
             fprintf(fst2,"%.1f",(float)((int)(scoreTable[i][j]*1000)));
             //fprintf(fst,"%d",(int)(scoreTable[i][j]*1000));
             if(j != N_STATES-1){
                 fprintf(fst,"\t");
+                fprintf(fupdt,"\t");
                 fprintf(fst2,", ");
             }
         }
         fprintf(fst2, " }");
         if (i != N_TASKTYPE-1){
             fprintf(fst,"\n");
+            fprintf(fupdt,"\n");
             fprintf(fst2,",\n");
         }
     }
     fprintf(fst2," };");
     fclose(fst);
     fclose(fst2);
+    fclose(fupdt);
 }
 
 void manyCorePrint(){ 
     FILE *fss;
     char tipo[3];
-    fss = fopen("SystemShot535.tsv", "w");
+    fss = fopen("SystemShot35.tsv", "w");
     int id = 0;
     for(int j=0;j<DIM_Y;j++){
         for(int i=0;i<DIM_X;i++){
@@ -248,8 +254,8 @@ void FLEA35_training(int time){
     float gamma = 0.6;
     float oldvalue, maxval, reward = 0.0,  delta = 0.0;
 
-    FILE *freward;
-    freward = fopen("Rewards535.log", "a");
+    // FILE *freward;
+    // freward = fopen("Rewards535.log", "a");
     
     for(int i = 0; i < SYSTEM_SIZE; i++){
         taskType = many_core[getY(i)][getX(i)].type;
@@ -277,7 +283,7 @@ void FLEA35_training(int time){
                 //     printf("\nErro no cálculo do reward!\nDelta: %f; Reward: %f\n", delta, reward);
                 //     throw 3;
                 // }
-                fprintf(freward, "%.4f; %.4f\n", delta, reward);
+                // fprintf(freward, "%.4f; %.4f\n", delta, reward);
                  
                 // printf("Delta: %.2f -- Current: %.2f Starting: %.2f \n",delta, (float)(current_fit/100),(float)(starting_fit[i]/100));
                 // printf("Reward: %.2f\n",  reward);
@@ -304,7 +310,7 @@ void FLEA35_training(int time){
             }
         }
     }
-    fclose(freward);
+    // fclose(freward);
     // print score table
 #if TRAINING
     if(time % 100 == 0) API_PrintScoreTable(scoreTable);
@@ -388,7 +394,7 @@ int main(int argc, char *argv[]){
 
         // STARTING SIMULATION...
         // if the time is over 20 ms start to evaluate the system
-        else if(cont>20){
+        if(cont>20){
             
             // checks if the system is running at target occupation
             if( getOccupation() < tagetOccupation(cont))  {
